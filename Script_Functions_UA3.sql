@@ -1,5 +1,5 @@
 
--- Fonction de calcul de l'amende total d'un un membre entré en paramètre
+-- Fonction de calcul de l'amende total d'un un membre entrÃ© en paramÃ¨tre
 CREATE OR ALTER FUNCTION fn_CalculerAmendesMembre(@membreID INT)
 RETURNS DECIMAL(10, 2)
 AS
@@ -8,30 +8,39 @@ BEGIN
 
     SELECT @totalAmende = SUM(Montant) FROM Amende a
     JOIN Emprunt e ON a.EmpruntID = e.Id_emprunt
-    WHERE e.MemberID = @membreID AND a.Statut_A = 'Impayée';
+    WHERE e.MemberID = @membreID AND a.Statut_A = 'ImpayÃ©e';
 
     RETURN ISNULL(@totalAmende, 0); -- Retour de l'amende
 END;
 
 GO
 
--- Fonction de vérification de l'éligibilité d'un membre lors de l'emprunt
+-- Fonction de vÃ©rification de l'Ã©ligibilitÃ© d'un membre lors de l'emprunt
 CREATE OR ALTER FUNCTION fn_VerifierEligibiliteEmprunt(@membreID INT)
 RETURNS INT
 AS
 BEGIN
     DECLARE @eligible INT;
-	
-	-- Éligible si pas d'amende ou amende payé, le statut du membre est actif et la limite d'emprunt est > 0
-    IF(((SELECT COUNT(*) FROM Amende WHERE EmpruntID IN
-	(SELECT Id_emprunt FROM Emprunt WHERE MemberID = @membreID) AND Statut_A = 'Payée') = 0
-	OR (SELECT Statut_A FROM Amende WHERE EmpruntID IN
-	(SELECT Id_emprunt FROM Emprunt WHERE MemberID = @membreID)) = 'Payée') AND
-	(SELECT Statut_M FROM Membre WHERE Id_membre = @membreID) = 'Actif' AND
-	(SELECT Limite_emprunt FROM Membre WHERE Id_membre = @membreID) > 0)
-        SET @eligible = 1; -- Éligible
+    DECLARE @amendesImpayees INT;
+    DECLARE @statut VARCHAR(20);
+    DECLARE @limite INT;
+
+    -- Nombre d'amendes impayÃ©es rattachÃ©es aux emprunts du membre
+    SELECT @amendesImpayees = COUNT(*)
+    FROM Amende a
+    JOIN Emprunt e ON a.EmpruntID = e.Id_emprunt
+    WHERE e.MemberID = @membreID AND a.Statut_A = 'ImpayÃ©e';
+
+    -- Statut et limite d'emprunt du membre
+    SELECT @statut = Statut_M, @limite = Limite_emprunt
+    FROM Membre
+    WHERE Id_membre = @membreID;
+
+    -- Ã‰ligible si aucune amende impayÃ©e, statut actif et limite d'emprunt disponible
+    IF (@amendesImpayees = 0 AND @statut = 'Actif' AND ISNULL(@limite, 0) > 0)
+        SET @eligible = 1;
     ELSE
-        SET @eligible = 0; -- Non éligible
+        SET @eligible = 0;
 
     RETURN @eligible;
 END;
